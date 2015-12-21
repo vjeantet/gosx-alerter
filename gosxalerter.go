@@ -47,28 +47,27 @@ type Alert struct {
 	Activation *Activation
 }
 type Options struct {
-	Message       string   //required
-	Title         string   //optional
-	Subtitle      string   //optional
-	Sound         Sound    //optional
-	Link          string   //optional
-	Sender        string   //optional
-	Group         string   //optional
-	AppIcon       string   //optional
-	ContentImage  string   //optional
-	Actions       []string //optional
-	Reply         bool
-	CloseLabel    string
-	DropdownLabel string
-	Timeout       int
+	Message       string   // required
+	Title         string   // Title of the notification
+	Subtitle      string   // Text under the title
+	Sound         Sound    // Sound triggered when alert pops up
+	Sender        string   // Send notification as a know osx app
+	Group         string   // Group notification ID
+	AppIcon       string   // Path or URL of image
+	ContentImage  string   // Path or URL of image
+	Actions       []string // One or more actions availables on the alert
+	Reply         bool     // Reply type alert
+	CloseLabel    string   // Change the Close button label
+	DropdownLabel string   // When more than 1 action, you may customize the action dropdown label
+	Timeout       int      // Autoclose notification avec X seconds
 }
 
 type Activation struct {
-	At          string         `json:"activationAt"`
-	Type        ActivationType `json:"activationType"`
-	Value       string         `json:"activationValue"`
-	DeliveredAt string         `json:"deliveredAt"`
-	ValueIndex  string         `json:"activationValueIndex"`
+	Type        ActivationType `json:"activationType"`       // What kind of event dismissed the alert
+	At          string         `json:"activationAt"`         // When did it happen ?
+	Value       string         `json:"activationValue"`      // Value of activation
+	DeliveredAt string         `json:"deliveredAt"`          // When displayed ?
+	ValueIndex  string         `json:"activationValueIndex"` // When Dismissed ?
 }
 
 func New(message string) *Alert {
@@ -84,6 +83,8 @@ func New(message string) *Alert {
 	return a
 }
 
+// DeliverAndWait display the alert, and returns an Activation when
+// the user or the OS interacts with the notification.
 func (a *Alert) DeliverAndWait() (*Activation, error) {
 	activationChan, err := a.Deliver()
 	if err != nil {
@@ -93,6 +94,8 @@ func (a *Alert) DeliverAndWait() (*Activation, error) {
 	return activation, nil
 }
 
+// Deliver display the alert, and returns a chan that will be feeded later
+// with Activation when user of OS interacts with the notification.
 func (a *Alert) Deliver() (chan *Activation, error) {
 	name, args, err := buildCommand(a)
 	if err != nil {

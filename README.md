@@ -4,13 +4,13 @@ gosx-alerter is a Go package for delivering desktop alert notifications to OSX 1
 [![GoDoc](http://godoc.org/github.com/vjeantet/gosx-alerter?status.png)](http://godoc.org/github.com/vjeantet/gosx-alerter)
 
 ```go
-    alert := gosxalerter.New("kmlj")
-    alert.Options.Actions = []string{"YES", "MAYBE"}
+    alert := gosxalerter.New("Deploy now on UAT ?")
+    alert.Options.Actions = []string{"Now", "Later today", "Tomorrow"}
+    alert.Options.AppIcon = "http://vjeantet.fr/images/logo.png"
     alert.Options.CloseLabel = "NO"
-    alert.Options.DropdownLabel = "Actions"
+    alert.Options.DropdownLabel = "When ?"
     alert.Options.Title = "Alerter"
     alert.Options.Sound = gosxalerter.SoundHero
-    alert.Options.Timeout = 10
 
     alertActivation, err := alert.DeliverAndWait()
     if err != nil {

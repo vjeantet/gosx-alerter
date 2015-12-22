@@ -72,6 +72,7 @@ type Activation struct {
 
 func New(message string) *Alert {
 	opts := &Options{
+		Title:            filepath.Base(os.Args[0]),
 		Message:          message,
 		Reply:            false,
 		ReplyPlaceHolder: "Reply",

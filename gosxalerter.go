@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 type Sound string
@@ -44,6 +45,7 @@ const (
 
 type Alert struct {
 	Options *Options
+	cmd     *exec.Cmd
 }
 type Options struct {
 	Message          string   // required
@@ -70,7 +72,11 @@ type Activation struct {
 	ValueIndex  string         `json:"activationValueIndex"` // When Dismissed ?
 }
 
-func New(message string) *Alert {
+func New(message string) (*Alert, error) {
+	if runtime.GOOS != "darwin" {
+		return nil, fmt.Errorf("gosx-alerter only works with OSX")
+	}
+
 	opts := &Options{
 		Title:            filepath.Base(os.Args[0]),
 		Message:          message,
@@ -82,7 +88,7 @@ func New(message string) *Alert {
 	a := &Alert{
 		Options: opts,
 	}
-	return a
+	return a, nil
 }
 
 // DeliverAndWait display the alert, and returns an Activation when
@@ -99,28 +105,45 @@ func (a *Alert) DeliverAndWait() (*Activation, error) {
 // Deliver display the alert, and returns a chan that will be feeded later
 // with Activation when user of OS interacts with the notification.
 func (a *Alert) Deliver() (chan *Activation, error) {
+	if a.cmd != nil {
+		return nil, fmt.Errorf("error: this alert is already delivered")
+	}
 	name, args, err := buildCommand(a)
 	if err != nil {
 		return nil, fmt.Errorf("error: %s", err)
 	}
 
-	cmd := exec.Command(name, args...)
-	cmdOut, _ := cmd.StdoutPipe()
-	if err := cmd.Start(); err != nil {
+	a.cmd = exec.Command(name, args...)
+
+	cmdOut, _ := a.cmd.StdoutPipe()
+	if err := a.cmd.Start(); err != nil {
 		return nil, err
 	}
 
-	activation := make(chan *Activation, 1)
+	activation := make(chan *Activation)
 
 	go func() {
 		cmdBytes, _ := ioutil.ReadAll(cmdOut)
-		cmd.Wait()
+		a.cmd.Wait()
 		act := &Activation{}
-		json.Unmarshal(cmdBytes, &act)
+		if len(cmdBytes) > 0 {
+			json.Unmarshal(cmdBytes, &act)
+		}
 		activation <- act
+		close(activation)
+		a.cmd = nil
 	}()
 
 	return activation, nil
+}
+
+// Close a displayed alert
+func (a *Alert) Close() error {
+	if a.cmd != nil {
+		return a.cmd.Process.Signal(syscall.SIGINT)
+	}
+
+	return fmt.Errorf("No alert currently running")
 }
 
 func buildCommand(a *Alert) (name string, arg []string, err error) {

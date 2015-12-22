@@ -1,26 +1,33 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/vjeantet/gosx-alerter"
 )
 
 func main() {
-	alert := gosxalerter.New("Deploy now on UAT ?")
-	alert.Options.Actions = []string{"Now", "Later today", "Tomorrow"}
-	alert.Options.AppIcon = "http://vjeantet.fr/images/logo.png"
-	alert.Options.CloseLabel = "NO"
-	alert.Options.DropdownLabel = "When ?"
-	alert.Options.Title = "Alerter"
-	alert.Options.Sound = gosxalerter.SoundHero
+	alert, _ := gosxalerter.New("Name this release please")
+	alert.Options.Reply = true
 
-	alertActivation, err := alert.DeliverAndWait()
+	activationChan, err := alert.Deliver()
 	if err != nil {
 		log.Fatalln("error:", err)
 	}
 
-	log.Printf("Type : %s", alertActivation.Type)
-	log.Printf("Value : %s", alertActivation.Value)
-	log.Printf("Activated at : %s", alertActivation.At)
+	// This is for example purpose, you can set a timeout options on an alert
+	// when needed.
+	select {
+	case activation := <-activationChan:
+		log.Printf("Type : %s", activation.Type)
+		log.Printf("Value : %s", activation.Value)
+		log.Printf("Activated at : %s", activation.At)
+
+	case <-time.After(5 * time.Second):
+		fmt.Println("BOOM!")
+		alert.Close()
+	}
+
 }

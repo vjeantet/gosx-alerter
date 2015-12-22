@@ -35,7 +35,7 @@ const (
 )
 
 const (
-	ActivationTypeClosed          ActivationType = "Closed"
+	ActivationTypeClosed          ActivationType = "closed"
 	ActivationTypeTimeOut         ActivationType = "timeout"
 	ActivationTypeContentsClicked ActivationType = "contentsClicked"
 	ActivationTypeActionClicked   ActivationType = "actionClicked"
@@ -43,23 +43,23 @@ const (
 )
 
 type Alert struct {
-	Options    *Options
-	Activation *Activation
+	Options *Options
 }
 type Options struct {
-	Message       string   // required
-	Title         string   // Title of the notification
-	Subtitle      string   // Text under the title
-	Sound         Sound    // Sound triggered when alert pops up
-	Sender        string   // Send notification as a know osx app
-	Group         string   // Group notification ID
-	AppIcon       string   // Path or URL of image
-	ContentImage  string   // Path or URL of image
-	Actions       []string // One or more actions availables on the alert
-	Reply         bool     // Reply type alert
-	CloseLabel    string   // Change the Close button label
-	DropdownLabel string   // When more than 1 action, you may customize the action dropdown label
-	Timeout       int      // Autoclose notification avec X seconds
+	Message          string   // required
+	Title            string   // Title of the notification
+	Subtitle         string   // Text under the title
+	Sound            Sound    // Sound triggered when alert pops up
+	Sender           string   // Send notification as a know osx app
+	Group            string   // Group notification ID
+	AppIcon          string   // Path or URL of image
+	ContentImage     string   // Path or URL of image
+	Actions          []string // One or more actions availables on the alert
+	Reply            bool     // Reply type alert
+	ReplyPlaceHolder string   // Reply placeholder
+	CloseLabel       string   // Change the Close button label
+	DropdownLabel    string   // When more than 1 action, you may customize the action dropdown label
+	Timeout          int      // Autoclose notification avec X seconds
 }
 
 type Activation struct {
@@ -72,9 +72,10 @@ type Activation struct {
 
 func New(message string) *Alert {
 	opts := &Options{
-		Message: message,
-		Reply:   false,
-		Timeout: 0,
+		Message:          message,
+		Reply:            false,
+		ReplyPlaceHolder: "Reply",
+		Timeout:          0,
 	}
 
 	a := &Alert{
@@ -109,13 +110,14 @@ func (a *Alert) Deliver() (chan *Activation, error) {
 	}
 
 	activation := make(chan *Activation, 1)
-	cmdBytes, _ := ioutil.ReadAll(cmdOut)
-	cmd.Wait()
-	act := &Activation{}
 
-	json.Unmarshal(cmdBytes, &act)
-	a.Activation = act
-	activation <- act
+	go func() {
+		cmdBytes, _ := ioutil.ReadAll(cmdOut)
+		cmd.Wait()
+		act := &Activation{}
+		json.Unmarshal(cmdBytes, &act)
+		activation <- act
+	}()
 
 	return activation, nil
 }
@@ -148,7 +150,7 @@ func buildCommand(a *Alert) (name string, arg []string, err error) {
 
 	//add Reply if found
 	if a.Options.Reply == true {
-		commandTuples = append(commandTuples, []string{"-reply"}...)
+		commandTuples = append(commandTuples, []string{"-reply", a.Options.ReplyPlaceHolder}...)
 	}
 
 	//add Reply if found
@@ -190,6 +192,8 @@ func buildCommand(a *Alert) (name string, arg []string, err error) {
 	if strings.HasPrefix(strings.ToLower(a.Options.Sender), "com.") {
 		commandTuples = append(commandTuples, []string{"-sender", a.Options.Sender}...)
 	}
+
+	commandTuples = append(commandTuples, []string{"-json"}...)
 
 	if len(commandTuples) == 0 {
 		return "", nil, errors.New("Please provide a Message and Type at a minimum.")
